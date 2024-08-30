@@ -140,15 +140,15 @@ jobs:
           PR_SHA=${{ github.event.pull_request.merge_commit_sha }}
           git checkout -b pr-to-main $PR_SHA
 
-      - name: List commits included in the PR
-        run: |
-          echo "Commits included in this PR:"
-          git log main..pr-to-main --oneline
+      # - name: List commits included in the PR
+      #   run: |
+      #     echo "Commits included in this PR:"
+      #     git log main..pr-to-main --oneline
 
-      - name: Show diff between main and pr-to-main
-        run: |
-          echo "Differences between main and pr-to-main:"
-          git diff main..pr-to-main
+      # - name: Show diff between main and pr-to-main
+      #   run: |
+      #     echo "Differences between main and pr-to-main:"
+      #     git diff main..pr-to-main
 
       - name: Push branch to remote
         env:
