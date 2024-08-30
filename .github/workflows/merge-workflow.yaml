@@ -106,8 +106,6 @@
 #               body: "A new pull request has been automatically created to merge the changes from this pull request into main."
 #             })
 
-
-
 name: Auto Merge Specific PR to Main
 
 on:
@@ -135,34 +133,33 @@ jobs:
         run: |
           sudo apt-get install -y jq
 
-      - name: Create a new branch from the specific PR commit
+      - name: Create a new branch from main
         run: |
-          PR_SHA=${{ github.event.pull_request.merge_commit_sha }}
-          git checkout -b pr-to-main $PR_SHA
+          git checkout main
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          git checkout -b pr-to-main-${PR_NUMBER}
 
-      # - name: List commits included in the PR
-      #   run: |
-      #     echo "Commits included in this PR:"
-      #     git log main..pr-to-main --oneline
-
-      # - name: Show diff between main and pr-to-main
-      #   run: |
-      #     echo "Differences between main and pr-to-main:"
-      #     git diff main..pr-to-main
+      - name: Cherry-pick the specific PR commits
+        run: |
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          PR_COMMITS=$(gh pr view $PR_NUMBER --json commits --jq '.commits[].oid')
+          for commit in $PR_COMMITS; do
+            git cherry-pick $commit
+          done
 
       - name: Push branch to remote
         env:
           PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
           git remote set-url origin https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${{ github.repository }}.git
-          git push origin pr-to-main
+          git push origin pr-to-main-${PR_NUMBER}
 
-      - name: Create Pull Request from the PR commit to main
+      - name: Create Pull Request from the PR commits to main
         env:
           PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
           gh auth login --with-token <<<"${{ secrets.PAT_TOKEN }}"
-          gh pr create --base main --head pr-to-main --title "Auto Merge: PR #${{ github.event.pull_request.number }} to Main" --body "Automated PR to merge changes from PR #${{ github.event.pull_request.number }} to main after passing QA."
+          gh pr create --base main --head pr-to-main-${PR_NUMBER} --title "Auto Merge: PR #${PR_NUMBER} to Main" --body "Automated PR to merge changes from PR #${PR_NUMBER} to main after passing QA."
 
       - name: Comment on original PR
         uses: actions/github-script@v6
@@ -172,5 +169,5 @@ jobs:
               issue_number: ${{ github.event.pull_request.number }},
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: "A new pull request has been automatically created to merge this PR into main. The following commits are included in this PR:\n$(git log main..pr-to-main --oneline)\n\nAnd the diff is:\n$(git diff main..pr-to-main)"
+              body: "A new pull request has been automatically created to merge this PR into main. The following commits are included in this PR:\n$(git log main..pr-to-main-${PR_NUMBER} --oneline)\n\nAnd the diff is:\n$(git diff main..pr-to-main-${PR_NUMBER})"
             })
